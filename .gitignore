@@ -1,0 +1,11 @@
+node_modules/
+dist/
+ai-visibility/
+.env
+.env.*
+.DS_Store
+*.log
+.claude/
+CLAUDE.local.md
+feedback.md
+fabel_feedback.md

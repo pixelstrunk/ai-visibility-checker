@@ -1,0 +1,49 @@
+{
+  "name": "ai-visibility-checker",
+  "version": "0.1.0",
+  "description": "Check whether ChatGPT, Gemini and Google AI Mode name your brand when buyers ask. Agent Skill and CLI, Markdown report with competitors and sources.",
+  "type": "module",
+  "bin": {
+    "ai-visibility-checker": "bin/ai-visibility-checker.js"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "skills"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json",
+    "test": "node --test test/*.test.ts",
+    "check": "npm run typecheck && npm test",
+    "prepack": "npm run build"
+  },
+  "keywords": [
+    "ai-visibility",
+    "geo",
+    "generative-engine-optimization",
+    "chatgpt",
+    "gemini",
+    "ai-mode",
+    "ai-search",
+    "llm-seo",
+    "seo",
+    "agent-skill",
+    "claude-code",
+    "codex"
+  ],
+  "license": "MIT",
+  "author": "Christian Strunk",
+  "engines": {
+    "node": ">=22"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pixelstrunk/ai-visibility-checker"
+  },
+  "homepage": "https://www.christianstrunk.com/tools/ai-visibility-checker?utm_source=npm&utm_medium=package&utm_campaign=ai-visibility-checker",
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "typescript": "^7.0.2"
+  }
+}

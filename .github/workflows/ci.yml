@@ -1,0 +1,51 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: "24"
+      - run: npm ci
+      - name: type check and tests
+        run: npm run check
+
+  package:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: ["22", "24"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: ${{ matrix.node-version }}
+      - run: npm ci
+      - name: pack, install and smoke test
+        run: |
+          npm pack
+          npm install -g ./ai-visibility-checker-*.tgz
+          ai-visibility-checker --version
+          ai-visibility-checker markets
+
+  version-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: version must be identical in package.json, cli.ts and plugin.json
+        run: |
+          pkg=$(node -p "require('./package.json').version")
+          cli=$(grep -E '^export const VERSION' src/cli.ts | cut -d'"' -f2)
+          plugin=$(node -p "require('./.claude-plugin/plugin.json').version")
+          echo "package.json=$pkg cli.ts=$cli plugin.json=$plugin"
+          test "$pkg" = "$cli" && test "$pkg" = "$plugin"

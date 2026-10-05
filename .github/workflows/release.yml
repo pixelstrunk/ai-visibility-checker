@@ -1,0 +1,52 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  npm:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+      - name: tag must match the version in package.json
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "tag $GITHUB_REF_NAME does not match package.json version $version"
+            exit 1
+          fi
+      - name: pin npm to a version with trusted publishing
+        run: npm install -g npm@12.2.0
+      - run: npm ci
+      - run: npm run check
+      - name: publish to npm via trusted publishing
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if npm view "ai-visibility-checker@$version" version >/dev/null 2>&1; then
+            echo "ai-visibility-checker@$version is already published, skipping"
+            exit 0
+          fi
+          npm publish
+
+  github-release:
+    needs: npm
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: create github release
+        run: gh release create "$GITHUB_REF_NAME" --generate-notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

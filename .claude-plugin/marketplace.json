@@ -1,0 +1,11 @@
+{
+  "name": "ai-visibility-checker",
+  "owner": { "name": "Christian Strunk", "url": "https://www.christianstrunk.com" },
+  "plugins": [
+    {
+      "name": "ai-visibility-checker",
+      "source": "./",
+      "description": "Check whether ChatGPT, Gemini and Google AI Mode name your brand when buyers ask, with competitors and sources in a Markdown report."
+    }
+  ]
+}
