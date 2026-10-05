@@ -39,7 +39,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/pixelstrunk/ai-visibility-checker"
+    "url": "git+https://github.com/pixelstrunk/ai-visibility-checker.git"
   },
   "homepage": "https://www.christianstrunk.com/tools/ai-visibility-checker?utm_source=npm&utm_medium=package&utm_campaign=ai-visibility-checker",
   "devDependencies": {
