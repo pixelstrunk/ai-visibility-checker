@@ -5,7 +5,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
-## [0.1.0] - unreleased
+## [0.1.1] - 2026-10-16
+
+### Changed
+
+- "Customer" instead of "buyer" in the question rules, the CLI help, the skill, the README and the package description.
+
+## [0.1.0] - 2026-10-05
 
 ### Added
 

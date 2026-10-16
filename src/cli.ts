@@ -16,7 +16,7 @@ import { llmFromEnv, type LlmPair } from "./llm/llm.ts";
 import { judgeWithLlm, writeQuestions } from "./llm/tasks.ts";
 import { DEFAULT_PROVIDER, PROVIDERS, type Provider } from "./providers/index.ts";
 
-export const VERSION = "0.1.0";
+export const VERSION = "0.1.1";
 
 export const FILES = { site: "site.json", questions: "questions.json", answers: "answers.json", verdicts: "verdicts.json", report: "report.md" } as const;
 export const RUNS_FOLDER = "ai-visibility";
