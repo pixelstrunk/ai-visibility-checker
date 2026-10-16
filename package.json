@@ -1,7 +1,7 @@
 {
   "name": "ai-visibility-checker",
   "version": "0.1.0",
-  "description": "Check whether ChatGPT, Gemini and Google AI Mode name your brand when buyers ask. Agent Skill and CLI, Markdown report with competitors and sources.",
+  "description": "Check whether ChatGPT, Gemini and Google AI Mode name your brand when customers ask. Agent Skill and CLI, Markdown report with competitors and sources.",
   "type": "module",
   "bin": {
     "ai-visibility-checker": "bin/ai-visibility-checker.js"

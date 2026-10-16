@@ -1,6 +1,6 @@
 # AI Visibility Checker
 
-A free GEO (generative engine optimization) check: find out whether ChatGPT, Gemini and Google AI Mode name your brand when buyers ask for a provider, and who they recommend instead.
+A free GEO (generative engine optimization) check: find out whether ChatGPT, Gemini and Google AI Mode name your brand when customers ask for a provider, and who they recommend instead.
 
 **[Try it without setup →](https://www.christianstrunk.com/tools/ai-visibility-checker?utm_source=github&utm_medium=readme&utm_campaign=ai-visibility-checker)** The hosted checker runs a deeper version of this check in your browser, with an analysis of what AI says about you and your next steps.
 
@@ -10,7 +10,7 @@ A free GEO (generative engine optimization) check: find out whether ChatGPT, Gem
 
 Video walkthrough: coming soon.
 
-AI Visibility Checker is an Agent Skill for Claude Code, Codex and other coding agents, plus a command-line tool with the same core. It reads your homepage, picks your market, asks the three engines five questions your buyers would ask, and writes a Markdown report: the score per engine, the competitors named instead of you, the questions, and every answer with its sources.
+AI Visibility Checker is an Agent Skill for Claude Code, Codex and other coding agents, plus a command-line tool with the same core. It reads your homepage, picks your market, asks the three engines five questions your customers would ask, and writes a Markdown report: the score per engine, the competitors named instead of you, the questions, and every answer with its sources.
 
 In the skill, your own agent writes the questions and judges the answers. You only need credentials for the answer provider. No Anthropic or OpenAI key, no account anywhere else.
 
@@ -131,13 +131,13 @@ A provider fetches the answers. The default is DataForSEO, which covers ChatGPT,
 
 Adding a provider is one file in `src/providers/` that implements the `Provider` type, plus one line to register it in `src/providers/index.ts`. There is no plugin mechanism yet, so a new provider means a change to the code and a new release. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-One caution: the APIs of the models themselves (OpenAI, Gemini, Anthropic) answer differently from the apps your buyers use. The apps search the web, use the person's country and cite sources; a bare model call usually does none of that. A provider built on the model APIs measures something else than what your buyers see.
+One caution: the APIs of the models themselves (OpenAI, Gemini, Anthropic) answer differently from the apps your customers use. The apps search the web, use the person's country and cite sources; a bare model call usually does none of that. A provider built on the model APIs measures something else than what your customers see.
 
 ### Why not Claude or Perplexity
 
-The checker only counts answers the way buyers see them: in the app, with web search, for their country, with sources.
+The checker only counts answers the way customers see them: in the app, with web search, for their country, with sources.
 
-For ChatGPT, Gemini and Google AI Mode the default provider returns exactly those answers, read from the apps. For Claude and Perplexity, DataForSEO offers answers through the model APIs only, not from the apps. Those calls can search the web and return citations, but they run a model and settings you pick, not the app your buyers open, and the two answer differently (see the caution above).
+For ChatGPT, Gemini and Google AI Mode the default provider returns exactly those answers, read from the apps. For Claude and Perplexity, DataForSEO offers answers through the model APIs only, not from the apps. Those calls can search the web and return citations, but they run a model and settings you pick, not the app your customers open, and the two answer differently (see the caution above).
 
 So they are left out rather than measured the wrong way. Perplexity comes in as soon as a provider returns its app answers. A provider for either one is a welcome contribution, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
@@ -149,7 +149,7 @@ The verdict of the judge (your agent or the LLM) decides whether an answer names
 
 It is one snapshot. AI answers change between runs and between people, so treat one report as a sample, not a trend.
 
-The hosted checker at christianstrunk.com goes further: it asks six questions along the buyer's journey instead of the five of this check, tells you whether AI describes your company correctly and gives you five next steps from what the answers and their sources show. That part is not in this repo.
+The hosted checker at christianstrunk.com goes further: it asks six questions along the customer journey instead of the five of this check, tells you whether AI describes your company correctly and gives you five next steps from what the answers and their sources show. That part is not in this repo.
 
 ## Privacy
 

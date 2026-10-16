@@ -1,6 +1,6 @@
 # AI Visibility Checker
 
-An Agent Skill (Claude Code, Codex and other agents) plus a command-line tool with the same core. It asks ChatGPT, Gemini and Google AI Mode five buyer questions for a website's market and writes a Markdown report: score per engine, competitors, the questions, every answer with its sources, and links to the hosted checker at christianstrunk.com.
+An Agent Skill (Claude Code, Codex and other agents) plus a command-line tool with the same core. It asks ChatGPT, Gemini and Google AI Mode five customer questions for a website's market and writes a Markdown report: score per engine, competitors, the questions, every answer with its sources, and links to the hosted checker at christianstrunk.com.
 
 ## Stack
 

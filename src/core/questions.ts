@@ -57,7 +57,7 @@ export function checkQuestions(questions: string[], brand: string, domain: strin
     if (!question.trim()) errors.push(`question ${n} is empty`);
     if (question.length > QUESTION_MAX_CHARS) errors.push(`question ${n} is longer than ${QUESTION_MAX_CHARS} characters`);
     if (brand && namedInText(brand, domain, question)) warnings.push(`question ${n} names the brand or its domain, so the check measures nothing`);
-    if (question.trim().split(/\s+/).length < 5) warnings.push(`question ${n} is very short; real buyer questions usually have 10 or more words`);
+    if (question.trim().split(/\s+/).length < 5) warnings.push(`question ${n} is very short; real customer questions usually have 10 or more words`);
   });
   const seen = new Set<string>();
   questions.forEach((question, index) => {

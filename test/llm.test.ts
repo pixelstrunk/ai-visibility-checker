@@ -5,7 +5,7 @@ import { judgeWithLlm, QUESTIONS_SCHEMA, VERDICTS_SCHEMA, writeQuestions } from 
 import { parseMarket } from "../src/core/markets.ts";
 import type { Answer, SiteFile } from "../src/core/types.ts";
 
-const task: LlmTask = { name: "buyer_questions", system: "sys", user: "usr", schema: QUESTIONS_SCHEMA };
+const task: LlmTask = { name: "customer_questions", system: "sys", user: "usr", schema: QUESTIONS_SCHEMA };
 
 function fakeFetch(body: unknown, status = 200, seen: { url?: string; init?: RequestInit } = {}): typeof fetch {
   return (async (url: string, init: RequestInit) => {
@@ -31,7 +31,7 @@ test("Anthropic requests use structured output, never a forced tool call (B1)", 
 test("OpenAI requests use a strict JSON schema", () => {
   const body = openaiBody(task, "gpt-5-mini");
   assert.equal(body.max_completion_tokens, MAX_TOKENS);
-  assert.deepEqual(body.response_format, { type: "json_schema", json_schema: { name: "buyer_questions", strict: true, schema: QUESTIONS_SCHEMA } });
+  assert.deepEqual(body.response_format, { type: "json_schema", json_schema: { name: "customer_questions", strict: true, schema: QUESTIONS_SCHEMA } });
   assert.equal("temperature" in body, false);
 });
 

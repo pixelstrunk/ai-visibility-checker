@@ -15,7 +15,7 @@ export const QUESTIONS_SCHEMA = {
   properties: {
     readable: { type: "boolean", description: "False if the homepage does not make clear what the company sells." },
     page_language: { type: "string", enum: [...MARKET_LANGUAGES, OTHER_LANGUAGE], description: `The main language of the homepage text as ISO 639-1 code, or "${OTHER_LANGUAGE}" for any language not listed.` },
-    brand: { type: "string", description: "The company, product or person name as buyers say it." },
+    brand: { type: "string", description: "The company, product or person name as customers say it." },
     questions: { type: "array", items: { type: "string" }, description: `Exactly ${QUESTION_COUNT} questions.` },
   },
 };
@@ -62,7 +62,7 @@ export async function writeQuestions(llm: Llm, site: SiteFile, forced: Market | 
   const rules = forced ? questionRules(forced) : questionRules(site.market, languageByText(site.domain));
   const system = `You read a company's homepage. First say whether it is clear what the company sells, report the main language of the homepage text and give the brand name. Then:\n\n${rules}`;
   const user = `Domain: ${site.domain}\nTitle: ${site.title}\nDescription: ${site.description}\n\nHomepage text:\n${site.text}`;
-  const { value, costUsd } = await llm.json<{ readable: boolean; page_language: string; brand: string; questions: string[] }>({ name: "buyer_questions", system, user, schema: QUESTIONS_SCHEMA });
+  const { value, costUsd } = await llm.json<{ readable: boolean; page_language: string; brand: string; questions: string[] }>({ name: "customer_questions", system, user, schema: QUESTIONS_SCHEMA });
   if (!value.readable) throw new Error(`the homepage of ${site.domain} does not make clear what the company sells; pass your own questions with --questions`);
   const language = value.page_language.trim().toLowerCase();
   const market = forced ?? marketFromLanguage(language, site);
@@ -72,7 +72,7 @@ export async function writeQuestions(llm: Llm, site: SiteFile, forced: Market | 
 export async function judgeWithLlm(llm: Llm, brand: string, domain: string, answers: Answer[]): Promise<{ verdicts: unknown; costUsd: number | null }> {
   const usable = answers.filter((a) => a.ok);
   if (usable.length === 0) return { verdicts: [], costUsd: 0 };
-  const system = `You read answers that AI assistants gave to buyer questions.\n\n${JUDGE_RULES}\n\nRecord every answer id you were given.`;
+  const system = `You read answers that AI assistants gave to customer questions.\n\n${JUDGE_RULES}\n\nRecord every answer id you were given.`;
   const blocks = usable.map((a) => `<answer id="${a.id}">\nQuestion: ${a.question}\nText:\n${a.text.slice(0, ANSWER_CHARS)}\n</answer>`);
   const user = `Brand: ${brand}\nDomain: ${domain}\n\n${blocks.join("\n\n")}`;
   const { value, costUsd } = await llm.json<{ verdicts: unknown }>({ name: "answer_verdicts", system, user, schema: VERDICTS_SCHEMA });

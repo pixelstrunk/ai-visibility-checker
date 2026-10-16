@@ -11,14 +11,14 @@ export function languageRule(market: Market): string {
 }
 
 export function questionRules(market: Market, language: string = languageRule(market)): string {
-  return `Write ${QUESTION_COUNT} questions that a future buyer would type into ChatGPT before they have heard of the company.
+  return `Write ${QUESTION_COUNT} questions that a future customer would type into ChatGPT before they have heard of the company.
 
 1. ${language} One full sentence of 10 to 25 words, ending with a question mark.
 2. Never name the company, its domain, its products or its people.
 3. Ask for providers: which tool, service, product, agency or company to use, hire or buy. An answer must naturally name specific providers. Avoid "what kind of", "what are the best ways" and similar questions that only get tips.
-4. Match the company's specific category, not a broad parent category, and describe the need in the buyer's words, not in the company's marketing wording.
+4. Match the company's specific category, not a broad parent category, and describe the need in the customer's words, not in the company's marketing wording.
 5. Every question is about the main offer of the website: what the top of the homepage leads with. If the site has several offers, pick that main offer and stay in its one category. Do not carry over side terms from the homepage (an industry, a client, a tool) that do not belong to the main offer.
-6. Cover ${QUESTION_COUNT} different angles on that main offer: different situations, pains or buyers.
+6. Cover ${QUESTION_COUNT} different angles on that main offer: different situations, pains or customers.
 7. Only name a place if customers must be served in person there (a clinic, a shop, a tradesperson).`;
 }
 

@@ -1,11 +1,11 @@
 ---
 name: ai-visibility-checker
-description: Check whether ChatGPT, Gemini and Google AI Mode name a brand when buyers ask for a provider, and write a Markdown report with the score per engine, the competitors named instead, every answer and its sources. Use when the user asks about AI visibility, GEO, generative engine optimization, whether AI assistants recommend their company, or who AI recommends instead of them.
+description: Check whether ChatGPT, Gemini and Google AI Mode name a brand when customers ask for a provider, and write a Markdown report with the score per engine, the competitors named instead, every answer and its sources. Use when the user asks about AI visibility, GEO, generative engine optimization, whether AI assistants recommend their company, or who AI recommends instead of them.
 ---
 
 # AI Visibility Checker
 
-Asks ChatGPT, Gemini and Google AI Mode five buyer questions for a website's market and reports who gets named. You, the agent, write the questions and judge the answers. The CLI reads the website, fetches the live answers through the user's answer provider and writes the report. The user needs no LLM key, only provider credentials.
+Asks ChatGPT, Gemini and Google AI Mode five customer questions for a website's market and reports who gets named. You, the agent, write the questions and judge the answers. The CLI reads the website, fetches the live answers through the user's answer provider and writes the report. The user needs no LLM key, only provider credentials.
 
 ## Setup
 
@@ -27,10 +27,10 @@ The default provider is DataForSEO. It needs `DATAFORSEO_LOGIN` and `DATAFORSEO_
 
    Then check the language yourself: the market comes from the page's declared language or its domain ending, and both can be wrong. If the homepage text is mainly in another language than the printed market, use the market for that language (`npx -y ai-visibility-checker@0 markets` lists them), write the questions in that language and add its id as `"market"` to `questions.json`.
 
-2. Write the questions. Follow the rules the command printed. In short: five general buyer questions in the market's language, never naming the brand, each asking which provider, tool or company to use, each from a different angle. All five stay with the main offer, the one the top of the homepage leads with; if the site sells several things, pick that one and leave side terms from the homepage (an industry, a client, a tool) out. If the user supplied their own questions, use those instead. Save them in the run folder as `questions.json`:
+2. Write the questions. Follow the rules the command printed. In short: five general customer questions in the market's language, never naming the brand, each asking which provider, tool or company to use, each from a different angle. All five stay with the main offer, the one the top of the homepage leads with; if the site sells several things, pick that one and leave side terms from the homepage (an industry, a client, a tool) out. If the user supplied their own questions, use those instead. Save them in the run folder as `questions.json`:
 
    ```json
-   { "brand": "Brand name as buyers say it", "market": "de-DE", "questions": ["...", "...", "...", "...", "..."] }
+   { "brand": "Brand name as customers say it", "market": "de-DE", "questions": ["...", "...", "...", "...", "..."] }
    ```
 
    `market` is optional; leave it out when the printed market is right.

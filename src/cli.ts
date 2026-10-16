@@ -23,7 +23,7 @@ export const RUNS_FOLDER = "ai-visibility";
 
 const HELP = `ai-visibility-checker ${VERSION}
 
-Asks ChatGPT, Gemini and Google AI Mode the questions your buyers ask and
+Asks ChatGPT, Gemini and Google AI Mode the questions your customers ask and
 writes a Markdown report: who gets named, at which position, with sources.
 
 One command:
@@ -319,7 +319,7 @@ async function cmdPrepare(ctx: Context, args: Args): Promise<number> {
   ctx.out(questionRules(site.market));
   ctx.out("");
   ctx.out(`Save them as ${join(dir, FILES.questions)}:`);
-  ctx.out(JSON.stringify({ brand: "Brand name as buyers say it", questions: ["...", "...", "...", "...", "..."] }, null, 2));
+  ctx.out(JSON.stringify({ brand: "Brand name as customers say it", questions: ["...", "...", "...", "...", "..."] }, null, 2));
   ctx.out("");
   ctx.out(`Then run: ai-visibility-checker ask ${dir}`);
   return 0;

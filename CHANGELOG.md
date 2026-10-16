@@ -9,7 +9,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Added
 
-- Agent Skill (`skills/ai-visibility-checker`) for Claude Code, Codex and other agents: the agent writes the five buyer questions and judges the answers, the CLI reads the homepage, fetches the answers and writes the report. No LLM key needed.
+- Agent Skill (`skills/ai-visibility-checker`) for Claude Code, Codex and other agents: the agent writes the five customer questions and judges the answers, the CLI reads the homepage, fetches the answers and writes the report. No LLM key needed.
 - Claude Code plugin manifest, installable with `/plugin marketplace add pixelstrunk/ai-visibility-checker`.
 - CLI with `check`, `prepare`, `ask`, `report`, `markets` and `providers`.
 - DataForSEO provider for ChatGPT, Gemini and Google AI Mode, behind an exchangeable provider interface.
