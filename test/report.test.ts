@@ -108,6 +108,16 @@ test("headings inside code fences stay, and a link target loses a trailing full 
   assert.equal(answerBody("See [ProductTrio](https://www.producttrio.com/pmf-program.) now."), "See [ProductTrio](https://www.producttrio.com/pmf-program). now.");
 });
 
+test("answer text cannot break the report or load anything", () => {
+  assert.equal(answerBody("See [a](https://a.com/docs#pricing)."), "See [a](https://a.com/docs#pricing).");
+  assert.equal(answerBody("Look ![tracker](https://evil.example/p.png) here"), "Look [tracker](https://evil.example/p.png) here");
+  assert.equal(answerBody('Hi <img src="https://evil.example/p.png"> and <!-- hide'), 'Hi &lt;img src="https://evil.example/p.png%22> and &lt;!-- hide');
+  assert.equal(answerBody("Budgets < $100 and `<div>` stay"), "Budgets < $100 and `<div>` stay");
+  assert.equal(answerBody("```js\nconst a = 1;"), "```js\nconst a = 1;\n```");
+  assert.equal(answerBody("Top tools\n---\nmore"), "Top tools\n\n---\nmore");
+  assert.equal(answerBody("```\n<b>code</b>\n```"), "```\n<b>code</b>\n```");
+});
+
 test("source links survive brackets in titles and parentheses in urls", () => {
   assert.equal(sourceLink("Best [2026] tools", "a.com", "https://a.com/x_(y)"), "[Best \\[2026\\] tools](https://a.com/x_%28y%29)");
   assert.equal(sourceLink(null, "a.com", "https://a.com/"), "[a.com](https://a.com/)");

@@ -1,6 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
+import { gzipSync } from "node:zlib";
 import { decodeBody, looksBlocked, makeFetcher, pageText, readCapped, readHomepage, type PageFetcher } from "../src/core/homepage.ts";
+import { nodeRequest, PrivateAddressError, publicOnlyLookup, type Lookup } from "../src/core/request.ts";
 
 const HTML = `<!doctype html><html lang="de"><head><title>Acme &amp; Co</title><meta name="description" content="Buchhaltung für Handwerker"></head>
 <body><nav>Menu</nav><script>var x = 1;</script><h1>Buchhaltung ohne Stress</h1><p>Für Handwerksbetriebe&nbsp;in Deutschland.</p></body></html>`;
@@ -99,4 +103,86 @@ test("the body stream is cut at the size limit", async () => {
   const body = await readCapped(new Response(stream), 4000);
   assert.equal(body.length, 4000);
   assert.ok(pulled <= 5, `pulled ${pulled} chunks`);
+});
+
+test("an ordinary page behind Cloudflare is not mistaken for a challenge", () => {
+  const ordinary = `<html><head><title>Acme Studio</title></head><body><p>We build websites for dentists in Hamburg.</p><script src="/cdn-cgi/challenge-platform/scripts/jsd/main.js"></script></body></html>`;
+  assert.equal(looksBlocked(200, ordinary), false);
+  assert.equal(looksBlocked(200, `<html><body><p>Hello</p><script>var t = "Access denied";</script></body></html>`), false);
+  assert.equal(looksBlocked(200, `<html><body><p>One moment.</p><script>window._cf_chl_opt = {};</script></body></html>`), true);
+  assert.equal(looksBlocked(200, `<html><body><h1>Access denied</h1></body></html>`), true);
+});
+
+test("custom elements named like hidden tags keep the text around them", () => {
+  assert.equal(pageText("<h1>Acme Payroll</h1><svg-icon></svg-icon><p>We do payroll for SMEs.</p>").text, "Acme Payroll\nWe do payroll for SMEs.");
+  assert.equal(pageText("<title-bar>Hi</title-bar><p>We do payroll.</p>").text, "Hi We do payroll.");
+  assert.equal(pageText("<template-x>Shown</template-x><template><p>Hidden</p></template>").text, "Shown");
+});
+
+test("named entities of German, French and typographic text are decoded", () => {
+  assert.equal(pageText("<p>M&uuml;nchen &ndash; Caf&eacute; &bdquo;Stra&szlig;e&ldquo; &euro;&nbsp;5 &AMP; &Auml;rger &hellip;</p>").text, "München – Café „Straße“ € 5 & Ärger …");
+  assert.equal(pageText("<p>&unknown; stays</p>").text, "&unknown; stays");
+});
+
+test("broken html near the size limit is read in linear time", () => {
+  for (const piece of ["<a", "<!--", "<meta ", "<title>", "<html ", "<head "]) {
+    const html = piece.repeat(Math.floor(2_000_000 / piece.length));
+    const started = performance.now();
+    pageText(html);
+    looksBlocked(200, html);
+    const ms = performance.now() - started;
+    assert.ok(ms < 2_000, `${piece} took ${Math.round(ms)} ms`);
+  }
+});
+
+const allowAll: Lookup = (hostname, options, callback) => {
+  if (options.all) callback(null, [{ address: "127.0.0.1", family: 4 }]);
+  else callback(null, "127.0.0.1", 4);
+};
+
+async function withServer(handler: Parameters<typeof createServer>[1], run: (base: string) => Promise<void>): Promise<void> {
+  const server = createServer(handler);
+  await new Promise<void>((done) => server.listen(0, "127.0.0.1", done));
+  try {
+    await run(`http://acme.de:${(server.address() as AddressInfo).port}`);
+  } finally {
+    server.close();
+  }
+}
+
+test("the request reads compressed pages and does not follow redirects itself", async () => {
+  await withServer(
+    (req, res) => {
+      if (req.url === "/moved") {
+        res.writeHead(301, { location: "/" });
+        res.end();
+        return;
+      }
+      res.writeHead(200, { "content-type": "text/html", "content-encoding": "gzip" });
+      res.end(gzipSync("<p>Für Handwerker</p>"));
+    },
+    async (base) => {
+      const request = nodeRequest(allowAll);
+      const page = await request(new URL(`${base}/`), { headers: {}, signal: AbortSignal.timeout(5_000) });
+      assert.equal(page.status, 200);
+      assert.equal(await readCapped(page), "<p>Für Handwerker</p>");
+      const moved = await request(new URL(`${base}/moved`), { headers: {}, signal: AbortSignal.timeout(5_000) });
+      assert.equal(moved.status, 301);
+      assert.equal(moved.headers.get("location"), "/");
+    },
+  );
+});
+
+test("the connection itself refuses private addresses, so a second DNS answer cannot sneak in", async () => {
+  let answers = 0;
+  const rebinding = publicOnlyLookup(async () => (answers++ === 0 ? [{ address: "93.184.215.14", family: 4 }] : [{ address: "127.0.0.1", family: 4 }]));
+  await new Promise<void>((done) => rebinding("acme.de", { all: true }, (err) => (assert.equal(err, null), done())));
+  await withServer(
+    (_req, res) => res.end("internal"),
+    async (base) => {
+      await assert.rejects(nodeRequest(rebinding)(new URL(`${base}/`), { headers: {}, signal: AbortSignal.timeout(5_000) }), PrivateAddressError);
+      const fetcher = makeFetcher(async () => ["93.184.215.14"], nodeRequest(rebinding));
+      await assert.rejects(fetcher(`${base}/`, "checker"), /acme\.de points to a private address/);
+    },
+  );
 });

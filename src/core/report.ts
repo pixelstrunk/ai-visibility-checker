@@ -1,6 +1,6 @@
 import { summarize, topCompetitors } from "./judge.ts";
 import type { Market } from "./markets.ts";
-import { cleanUrl } from "../providers/provider.ts";
+import { withoutTracking } from "../providers/provider.ts";
 import { engineLabel, type EngineId, type JudgedAnswer } from "./types.ts";
 
 export const SITE = "https://www.christianstrunk.com";
@@ -22,17 +22,38 @@ export type ReportInput = {
 const BARE_URL = /https?:\/\/[^\s<>()\[\]]+?(?=[.,;:!?]*(?:[\s<>()\[\]]|$))/g;
 const LINK_TARGET_WITH_PUNCTUATION = /\]\((https?:\/\/[^)\s]*?)([.,;:!?]+)\)/g;
 const HEADING = /^#{1,6}\s+(.+?)\s*#*$/;
+const FENCE = /^\s*(```|~~~)/;
+const SETEXT_UNDERLINE = /^ {0,3}(?:-+|=+)[ \t]*$/;
+const RAW_HTML = /<(?=[A-Za-z\/!?])/g;
+
+function outsideInlineCode(line: string): string {
+  return line
+    .split(/(`[^`]*`)/)
+    .map((part, index) => (index % 2 === 1 ? part : part.replace(/!\[/g, "[").replace(RAW_HTML, "&lt;")))
+    .join("");
+}
 
 export function answerBody(text: string): string {
-  const cleaned = text.trim().replace(BARE_URL, (url) => cleanUrl(url)).replace(LINK_TARGET_WITH_PUNCTUATION, "]($1)$2");
-  let inFence = false;
-  return cleaned
-    .split("\n")
-    .map((line) => {
-      if (/^\s*(```|~~~)/.test(line)) inFence = !inFence;
-      return inFence ? line : line.replace(HEADING, "**$1**");
-    })
-    .join("\n");
+  const cleaned = text.trim().replace(BARE_URL, (url) => withoutTracking(url)).replace(LINK_TARGET_WITH_PUNCTUATION, "]($1)$2");
+  const lines: string[] = [];
+  let fence: string | null = null;
+  for (const line of cleaned.split("\n")) {
+    const marker = FENCE.exec(line)?.[1] ?? null;
+    if (fence) {
+      lines.push(line);
+      if (marker === fence) fence = null;
+      continue;
+    }
+    if (marker) {
+      fence = marker;
+      lines.push(line);
+      continue;
+    }
+    if (SETEXT_UNDERLINE.test(line) && lines.length > 0 && lines[lines.length - 1]!.trim()) lines.push("");
+    lines.push(outsideInlineCode(line).replace(HEADING, "**$1**"));
+  }
+  if (fence) lines.push(fence);
+  return lines.join("\n");
 }
 
 export function sourceLink(title: string | null, domain: string, url: string): string {

@@ -15,12 +15,13 @@ You can expect an initial response within a week.
 ## Hardening in place
 
 - Domains are normalized; localhost, IP addresses and internal suffixes are refused as input.
-- Before the homepage request and again after every redirect (at most three), the host name is resolved and refused if any of its addresses is private, loopback or link-local. The check runs on the DNS answer just before the request; a resolver that answers differently on the second lookup (DNS rebinding) is not ruled out. For a tool you run on your own machine against domains you choose, I consider that acceptable.
-- Homepage reads have a 15 second timeout, and the download stops after 2 MB.
+- Before the homepage request and again after every redirect (at most three), the host name is resolved and refused if any of its addresses is private, loopback or link-local. The connection itself uses the same check on the address it actually connects to, so a resolver that answers differently on a second lookup (DNS rebinding) cannot reach an internal address.
+- Homepage reads have a 15 second timeout, the download stops after 2 MB, and the HTML is parsed in linear time, so a crafted page cannot stall the tool.
+- A questions file that looks like a credentials file (a `.env` name or `NAME=value` lines) is refused, and so is any question or brand that contains the value of a key, token, password or login from the environment. Error messages name a file that is not valid JSON, never its content.
 - The package has no runtime dependencies. CI uses SHA-pinned actions, least-privilege permissions, CodeQL and Dependabot. Releases are published via trusted publishing without long-lived tokens.
 
 ## Scope notes
 
-The tool parses untrusted content: the homepage HTML and the answer text and sources returned by the engines. Crashes or corrupted reports on crafted input are in scope. Answer text is written into the Markdown report as returned, so treat reports from untrusted runs like any other untrusted Markdown.
+The tool parses untrusted content: the homepage HTML and the answer text and sources returned by the engines. Crashes or corrupted reports on crafted input are in scope. In the report, raw HTML in answers is escaped, images become plain links and unclosed code blocks are closed, so an answer cannot load anything or hide the rest of the report.
 
-The judge, whether your agent or an LLM called by the CLI, reads the answer texts as part of its prompt. An answer that contains instructions can try to steer the verdict. The tool checks every "named" verdict against the text, so a planted mention of your brand does not count, but the competitors and positions a judge reports are taken as given.
+The agent and the judge read untrusted text. `prepare` prints the homepage last, between `<<<HOMEPAGE_TEXT` and `HOMEPAGE_TEXT>>>`, after its own instructions, and strips those markers from the page so a page cannot close the block early. `ask` and the skill tell the agent that answers are data, and the skill limits the agent to its own commands. The LLM judge gets the same instruction, and answer texts cannot close their own block in its prompt. The tool checks every "named" verdict against the text, so a planted mention of your brand does not count, but the competitors and positions a judge reports are taken as given.

@@ -5,6 +5,34 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-10-16
+
+### Security
+
+- `prepare` prints the homepage text last, fenced as data between `<<<HOMEPAGE_TEXT` and `HOMEPAGE_TEXT>>>`; `ask`, the skill and the LLM prompts say that page and answer texts are data, never instructions.
+- A questions file that looks like a credentials file, or a question or brand that contains a credential from the environment, is refused before anything is sent.
+- A file that is not valid JSON is named in the error, its content is never shown.
+- The homepage connection checks the address it actually connects to, which closes DNS rebinding. 6to4 and IPv4-compatible IPv6 addresses count as private.
+- Raw HTML in answers is escaped in the report and images become plain links.
+
+### Fixed
+
+- Ordinary pages behind Cloudflare, and pages whose scripts contain "access denied", are no longer mistaken for bot challenges.
+- Custom elements such as `<svg-icon>` or `<title-bar>` no longer swallow the homepage text after them.
+- Named entities such as `&uuml;`, `&eacute;`, `&ndash;` and `&euro;` are decoded.
+- Broken HTML near the 2 MB limit is parsed in linear time.
+- A region in the declared language (`en-GB`, `de-AT`, `fr-BE`) picks the country on .com and other neutral domain endings; `data-lang` and `lang="english"` are no longer misread.
+- A link that only cites the brand's website as a source no longer counts as a mention, with or without a judge.
+- A brand written in lower case is matched with any capitals when there is no judge.
+- Domains match whole hosts only (`acme.com` no longer matches `acme.com.au`), and an international domain also matches its punycode form.
+- A brand is no longer found inside a different product written like a domain (`Bolt` in `Bolt.new`), and competitors that only share a word with the brand are kept.
+- Competitor spellings that form a chain (`Zoom`, `Zoom Video`, `Zoom Video Communications`) merge into the longest one.
+- Verdicts with the wrong type (`"named": "true"`, `"position": "2"`) are refused with a clear error instead of being counted as not named, and an alias that is an ordinary lower case word is ignored.
+- `prepare` on an earlier run folder removes its answers, verdicts and report, and its questions when the domain changes.
+- `check` asks once before anything is paid, the LLM step included.
+- Unclosed code blocks, setext underlines and HTML comments in answers no longer break the rest of the report, and links in answers keep their `#section` anchors.
+- Printed next-step commands quote run folders that contain spaces.
+
 ## [0.1.1] - 2026-10-16
 
 ### Changed

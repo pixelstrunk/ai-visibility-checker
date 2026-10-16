@@ -1,5 +1,7 @@
 import { assertPublicHost, InputError, resolveHost, type HostResolver } from "./domain.ts";
+import { namedEntity } from "./entities.ts";
 import { htmlLanguage } from "./markets.ts";
+import { nodeRequest, PrivateAddressError, type HttpRequest } from "./request.ts";
 
 export const HOMEPAGE_TIMEOUT_MS = 15_000;
 export const HOMEPAGE_MAX_BYTES = 2 * 1024 * 1024;
@@ -19,22 +21,25 @@ const IDENTITY_HEADERS: Record<Identity, Record<string, string>> = {
 };
 
 const BLOCKING_STATUS = new Set([401, 403, 429, 503]);
-const BLOCK_PAGE = /just a moment\.\.\.|attention required!? \| cloudflare|cf-browser-verification|challenge-platform|cf_chl_|checking your browser|access denied|request unsuccessful\. incapsula|pardon our interruption|px-captcha|captcha-delivery|datadome|powered and protected by|are you a robot|verify you are (a )?human/i;
+const BLOCK_PAGE_TEXT = /just a moment\.\.\.|attention required!? \| cloudflare|checking your browser|access denied|request unsuccessful\. incapsula|pardon our interruption|powered and protected by|are you a robot|verify you are (a )?human/i;
+const BLOCK_PAGE_MARKUP = /cf-browser-verification|cf_chl_|px-captcha|captcha-delivery\.com/i;
 const BLOCK_PAGE_MAX_TEXT = 1_500;
 
 export class SiteBlocked extends InputError {}
 
-const HIDDEN_ELEMENTS = /<(script|style|noscript|svg|template|iframe|title)\b[\s\S]*?(?:<\/\1\s*>|$)/gi;
+const HIDDEN_ELEMENTS = /<(script|style|noscript|svg|template|iframe|title)(?=[\s/>])[\s\S]*?(?:<\/\1\s*>|$)/gi;
+const COMMENTS = /<!--[\s\S]*?(?:-->|$)/g;
+const BLOCK_END = /<\/(p|div|section|article|li|h[1-6]|header|footer|nav|br|tr)>/gi;
+const TAG = /<[^<>]*>/g;
+const META_TAG = /<meta\b(?:"[^"]{0,2000}"|'[^']{0,2000}'|[^'"<>])*>/gi;
 
 export function looksBlocked(status: number, body: string): boolean {
   if (BLOCKING_STATUS.has(status)) return true;
   if (status < 200 || status >= 300) return false;
-  if (!BLOCK_PAGE.test(body)) return false;
-  const visible = body.replace(HIDDEN_ELEMENTS, " ").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-  return visible.length < BLOCK_PAGE_MAX_TEXT;
+  const page = pageText(body, BLOCK_PAGE_MAX_TEXT + 1);
+  if (page.text.length > BLOCK_PAGE_MAX_TEXT) return false;
+  return BLOCK_PAGE_TEXT.test(`${page.title}\n${page.text}`) || BLOCK_PAGE_MARKUP.test(body);
 }
-
-const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
 
 function codePoint(entity: string, value: number): string {
   const valid = Number.isInteger(value) && value > 0 && value <= 0x10ffff && !(value >= 0xd800 && value <= 0xdfff);
@@ -45,7 +50,7 @@ export function decode(text: string): string {
   return text
     .replace(/&#(\d+);/g, (m, n: string) => codePoint(m, Number(n)))
     .replace(/&#x([0-9a-f]+);/gi, (m, n: string) => codePoint(m, parseInt(n, 16)))
-    .replace(/&([a-z]+);/gi, (m, name: string) => ENTITIES[name.toLowerCase()] ?? m);
+    .replace(/&([a-z][a-z0-9]*);/gi, (m, name: string) => namedEntity(name) ?? m);
 }
 
 function squash(text: string): string {
@@ -53,20 +58,34 @@ function squash(text: string): string {
 }
 
 function metaContent(html: string, key: string): string {
-  const tag = new RegExp(`<meta\\b(?:"[^"]*"|'[^']*'|[^'">])*?(?:name|property)\\s*=\\s*["']${key}["'](?:"[^"]*"|'[^']*'|[^'">])*>`, "i").exec(html)?.[0];
-  const match = tag ? /\bcontent\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(tag) : null;
-  return match ? squash(match[1] ?? match[2] ?? "") : "";
+  const named = new RegExp(`\\s(?:name|property)\\s*=\\s*["']${key}["']`, "i");
+  for (const tag of html.match(META_TAG) ?? []) {
+    if (!named.test(tag)) continue;
+    const match = /\scontent\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(tag);
+    return match ? squash(match[1] ?? match[2] ?? "") : "";
+  }
+  return "";
+}
+
+function titleOf(html: string): string {
+  const open = /<title(?=[\s>])[^<>]*>/i.exec(html);
+  if (!open) return "";
+  const start = open.index + open[0].length;
+  const end = html.slice(start).search(/<\/title\s*>/i);
+  return end < 0 ? "" : squash(html.slice(start, start + end));
+}
+
+function withoutHead(html: string): string {
+  const start = html.search(/<head[\s>]/i);
+  if (start < 0) return html;
+  const end = html.slice(start).search(/<\/head\s*>/i);
+  return end < 0 ? html : `${html.slice(0, start)} ${html.slice(start + end).replace(/^<\/head\s*>/i, "")}`;
 }
 
 export function pageText(html: string, limit: number = TEXT_LIMIT): { title: string; description: string; text: string } {
-  const title = squash(/<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1] ?? "");
+  const title = titleOf(html);
   const description = metaContent(html, "description") || metaContent(html, "og:description");
-  const body = html
-    .replace(/<head[\s>][\s\S]*?<\/head>/gi, " ")
-    .replace(HIDDEN_ELEMENTS, " ")
-    .replace(/<!--[\s\S]*?-->/g, " ")
-    .replace(/<\/(p|div|section|article|li|h[1-6]|header|footer|nav|br|tr)>/gi, "\n")
-    .replace(/<[^>]+>/g, " ");
+  const body = withoutHead(html).replace(HIDDEN_ELEMENTS, " ").replace(COMMENTS, " ").replace(BLOCK_END, "\n").replace(TAG, " ");
   const text = decode(body)
     .split("\n")
     .map((l) => l.replace(/\s+/g, " ").trim())
@@ -95,7 +114,7 @@ function decoderFor(label: string | null): TextDecoder {
 
 export function decodeBody(bytes: Uint8Array, contentType: string): string {
   const head = new TextDecoder("latin1").decode(bytes.subarray(0, CHARSET_SNIFF_BYTES));
-  const metaCharset = /<meta\b[^>]*charset[^>]*>/i.exec(head)?.[0] ?? "";
+  const metaCharset = /<meta\b[^<>]*charset[^<>]*>/i.exec(head)?.[0] ?? "";
   const charset = charsetIn(contentType) ?? charsetIn(metaCharset);
   return decoderFor(charset).decode(bytes);
 }
@@ -119,18 +138,23 @@ export async function readCapped(res: Response, maxBytes: number = HOMEPAGE_MAX_
   return decodeBody(Buffer.concat(chunks), res.headers.get("content-type") ?? "");
 }
 
-export function makeFetcher(resolve: HostResolver = resolveHost, request: typeof fetch = fetch): PageFetcher {
+function failure(url: URL, err: unknown, signal: AbortSignal): InputError {
+  if (err instanceof PrivateAddressError) return new InputError(`${err.hostname} points to a private address`);
+  return new InputError(`${url.toString()} ${signal.aborted ? "took too long to answer" : "could not be reached"}`);
+}
+
+export function makeFetcher(resolve: HostResolver = resolveHost, request: HttpRequest = nodeRequest()): PageFetcher {
   return async (start, identity) => {
     let url = new URL(start);
     for (let hop = 0; ; hop += 1) {
       if (url.protocol !== "https:" && url.protocol !== "http:") throw new InputError(`${start} redirects to a non web address`);
       await assertPublicHost(url.hostname, resolve);
+      const signal = AbortSignal.timeout(HOMEPAGE_TIMEOUT_MS);
       let res: Response;
       try {
-        res = await request(url, { headers: IDENTITY_HEADERS[identity], redirect: "manual", signal: AbortSignal.timeout(HOMEPAGE_TIMEOUT_MS) });
+        res = await request(url, { headers: IDENTITY_HEADERS[identity], signal });
       } catch (err) {
-        const reason = err instanceof Error && err.name === "TimeoutError" ? "took too long to answer" : "could not be reached";
-        throw new InputError(`${url.toString()} ${reason}`);
+        throw failure(url, err, signal);
       }
       const location = res.status >= 300 && res.status < 400 ? res.headers.get("location") : null;
       if (location) {
@@ -139,7 +163,13 @@ export function makeFetcher(resolve: HostResolver = resolveHost, request: typeof
         url = new URL(location, url);
         continue;
       }
-      return { url: url.toString(), status: res.status, body: await readCapped(res), contentType: res.headers.get("content-type") ?? "" };
+      let body: string;
+      try {
+        body = await readCapped(res);
+      } catch (err) {
+        throw failure(url, err, signal);
+      }
+      return { url: url.toString(), status: res.status, body, contentType: res.headers.get("content-type") ?? "" };
     }
   };
 }

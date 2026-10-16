@@ -41,11 +41,15 @@ test("brand names are found as whole words, domains as whole hosts", () => {
 });
 
 test("verdicts are validated", () => {
-  const verdicts = parseVerdicts({ verdicts: [{ id: "chatgpt-1", named: true, alias: " Herbig ", position: 2, competitors: ["Beta", "https://beta.com/x", "beta.com/pricing", " ", "Gamma"] }, { id: "gemini-1", named: "yes", position: 0 }] });
+  const verdicts = parseVerdicts({ verdicts: [{ id: "chatgpt-1", named: true, alias: " Herbig ", position: 2, competitors: ["Beta", "https://beta.com/x", "beta.com/pricing", " ", "Gamma"] }, { id: "gemini-1", named: false, position: 0 }] });
   assert.deepEqual(verdicts, [
     { id: "chatgpt-1", named: true, alias: "Herbig", position: 2, competitors: ["Beta", "Gamma"] },
     { id: "gemini-1", named: false, alias: null, position: null, competitors: [] },
   ]);
+  assert.throws(() => parseVerdicts([{ id: "gemini-1", named: "true" }]), /verdict gemini-1: "named" must be true or false/);
+  assert.throws(() => parseVerdicts([{ id: "gemini-1", named: true, position: "2" }]), /"position" must be a whole number or null/);
+  assert.throws(() => parseVerdicts([{ id: "gemini-1", named: true, competitors: "Beta" }]), /"competitors" must be a list/);
+  assert.throws(() => parseVerdicts([{ id: "gemini-1", named: true, alias: 3 }]), /"alias" must be a name or null/);
   assert.throws(() => parseVerdicts([{ named: true }]), /no id/);
   assert.throws(() => parseVerdicts("nope"), /list/);
 });
@@ -127,4 +131,64 @@ test("summary and competitor ranking count answered answers only", () => {
     { name: "Beta", count: 3 },
     { name: "Gamma", count: 1 },
   ]);
+});
+
+test("a link that only cites the brand's site as a source is not a mention", () => {
+  const text = "Use Personio or Factorial. ([acme.de](https://acme.de/blog/payroll?utm_source=chatgpt.com))";
+  const [unjudged] = judgeAnswers([answer("chatgpt-1", "chatgpt", 0, text)], null, "Acme", "acme.de");
+  assert.equal(unjudged!.named, false);
+  const [judged] = judgeAnswers([answer("chatgpt-1", "chatgpt", 0, text)], [verdict("chatgpt-1", false)], "Acme", "acme.de");
+  assert.equal(judged!.warning, null);
+  const [claimed] = judgeAnswers([answer("chatgpt-1", "chatgpt", 0, text)], [verdict("chatgpt-1", true, { position: 1 })], "Acme", "acme.de");
+  assert.equal(claimed!.named, false);
+  assert.equal(namedInText("Acme", "acme.de", "Acme Payroll ([Acme](https://acme.de))"), true);
+});
+
+test("domains match whole hosts only, in Unicode and in punycode", () => {
+  assert.equal(namedInText("Acme", "acme.com", "see acme.com.au for Australia"), false);
+  assert.equal(namedInText("Acme", "acme.com", "see blog.acme.com"), true);
+  assert.equal(namedInText("Acme", "acme.com", "see acme.com."), true);
+  assert.equal(namedInText("Müller", "müller.de", "Infos auf xn--mller-kva.de"), true);
+});
+
+test("a brand is not found inside a different product written like a domain", () => {
+  assert.equal(namedInText("Bolt", "bolt.com", "Try Bolt.new or Lovable"), false);
+  assert.equal(namedInText("Bolt", "bolt.com", "Try Bolt. It is fast."), true);
+  const [judged] = judgeAnswers([answer("chatgpt-1", "chatgpt", 0, "Try Bolt.new or Lovable")], [verdict("chatgpt-1", false, { competitors: ["Bolt.new", "Lovable"] })], "Bolt", "bolt.com");
+  assert.deepEqual(judged!.competitors, ["Bolt.new", "Lovable"]);
+});
+
+test("without a verdict, a brand written in lower case matches any capitals", () => {
+  const [lower] = judgeAnswers([answer("chatgpt-1", "chatgpt", 0, "Acme Payroll is great")], null, "acme payroll", "acmepayroll.de");
+  assert.equal(lower!.named, true);
+  const [proper] = judgeAnswers([answer("chatgpt-1", "chatgpt", 0, "the most plausible option")], null, "Plausible", "plausible.io");
+  assert.equal(proper!.named, false);
+});
+
+test("an alias that is an ordinary lower case word does not count as a mention", () => {
+  const [judged] = judgeAnswers([answer("chatgpt-1", "chatgpt", 0, "Use the tool from Beta.")], [verdict("chatgpt-1", true, { alias: "the", position: 1 })], "Acme", "acme.de");
+  assert.equal(judged!.named, false);
+  assert.match(judged!.warning!, /never contains "Acme" or acme\.de/);
+  const [lowerBrand] = judgeAnswers([answer("chatgpt-1", "chatgpt", 0, "try notion for docs")], [verdict("chatgpt-1", true, { alias: "notion", position: 1 })], "Notion Labs", "notion.so");
+  assert.equal(lowerBrand!.named, true);
+});
+
+test("competitors that only share a word with the brand stay competitors", () => {
+  const [judged] = judgeAnswers(
+    [answer("chatgpt-1", "chatgpt", 0, "Apple and Figma, or Apple Tree Studio GmbH")],
+    [verdict("chatgpt-1", true, { position: 3, alias: "Apple Tree", competitors: ["Apple", "Figma", "Apple Tree Studio GmbH", "Apple Tree"] })],
+    "Apple Tree Studio",
+    "appletree.studio",
+  );
+  assert.deepEqual(judged!.competitors, ["Apple", "Figma"]);
+});
+
+test("a chain of longer spellings merges into the longest one", () => {
+  const judged = judgeAnswers(
+    [answer("chatgpt-1", "chatgpt", 0, "Zoom"), answer("gemini-1", "gemini", 0, "Zoom Video"), answer("ai_mode-1", "ai_mode", 0, "Zoom Video Communications")],
+    [verdict("chatgpt-1", false, { competitors: ["Zoom"] }), verdict("gemini-1", false, { competitors: ["Zoom Video"] }), verdict("ai_mode-1", false, { competitors: ["Zoom Video Communications"] })],
+    "Acme",
+    "acme.de",
+  );
+  assert.deepEqual(topCompetitors(judged), [{ name: "Zoom Video Communications", count: 3 }]);
 });

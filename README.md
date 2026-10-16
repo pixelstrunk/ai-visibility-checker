@@ -87,7 +87,7 @@ npx ai-visibility-checker@0 check example.com          # with ANTHROPIC_API_KEY 
 npm install -g ai-visibility-checker@0                 # or install it once
 ```
 
-`check` runs everything in one go and writes a run folder `ai-visibility/<domain>-<date>/` with `site.json`, `questions.json`, `answers.json`, `verdicts.json` and `report.md`. The `ai-visibility/` folder gets its own `.gitignore`, so runs inside a code project are never committed by accident. In a terminal, `check` and `ask` show the cost and wait for Enter before anything is paid; `--yes` skips that.
+`check` runs everything in one go and writes a run folder `ai-visibility/<domain>-<date>/` with `site.json`, `questions.json`, `answers.json`, `verdicts.json` and `report.md`. The `ai-visibility/` folder gets its own `.gitignore`, so runs inside a code project are never committed by accident. In a terminal, `check` and `ask` show the cost and wait for Enter before anything is paid, the LLM step of `check` included; `--yes` skips that.
 
 Without an agent, the CLI needs either your own questions or an LLM key:
 
@@ -119,7 +119,7 @@ ai-visibility-checker report <run folder>     # build report.md from answers.jso
 
 ## Markets
 
-The language your homepage declares picks the market, the top-level domain picks the country where a language is spoken in several. A page that declares no language gets its market from the domain ending (.de, .at, .ch, .fr, .es, .it, .nl, .be, .uk). Anything else falls back to the United States in English. With an LLM key, `check` also reads the language of the text itself and follows it when the declaration is wrong; in the skill, your agent does that check. `ai-visibility-checker markets` lists all 13:
+The language your homepage declares picks the market. Where a language is spoken in several countries, the top-level domain picks the country, and on a .com or other neutral ending the region in the declared language does (`en-GB`, `de-AT`, `fr-BE`). A page that declares no language gets its market from the domain ending (.de, .at, .ch, .fr, .es, .it, .nl, .be, .uk). Anything else falls back to the United States in English. With an LLM key, `check` also reads the language of the text itself and follows it when the declaration is wrong; in the skill, your agent does that check. `ai-visibility-checker markets` lists all 13:
 
 United States, United Kingdom, Germany, Austria, Switzerland (German, French, Italian), France, Belgium (French, Dutch), Spain, Italy, Netherlands.
 
@@ -145,7 +145,7 @@ So they are left out rather than measured the wrong way. Perplexity comes in as 
 
 For each answer the report shows whether your brand is named, at which position among the recommended providers, which competitors are named, and which pages the engine cites as sources. The competitor ranking counts in how many answers each competitor appears.
 
-The verdict of the judge (your agent or the LLM) decides whether an answer names you. The tool checks every verdict against the text: a "named" verdict without your name, domain or the alias the judge gives is not counted, and the report marks every verdict that contradicts the text with "Check". Without a judge, the tool looks for your brand name as you wrote it, with matching capitals, or your domain.
+The verdict of the judge (your agent or the LLM) decides whether an answer names you. The tool checks every verdict against the text: a "named" verdict without your name, domain or the alias the judge gives is not counted, and the report marks every verdict that contradicts the text with "Check". Without a judge, the tool looks for your brand name as you wrote it, with matching capitals if you wrote any, or your domain. A link that only cites your website as a source does not count as being named.
 
 It is one snapshot. AI answers change between runs and between people, so treat one report as a sample, not a trend.
 

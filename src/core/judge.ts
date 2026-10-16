@@ -1,4 +1,5 @@
-import { mergeNameLists, nameKey } from "./names.ts";
+import { domainToASCII } from "node:url";
+import { baseNameKey, mergeNameLists, nameKey } from "./names.ts";
 import type { Answer, JudgedAnswer, Verdict } from "./types.ts";
 
 const BARE_DOMAIN = /^(www\.)?[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}$/i;
@@ -14,11 +15,12 @@ function containsName(name: string, text: string, caseSensitive: boolean): boole
   const needle = name.trim();
   if (!needle) return false;
   const exact = caseSensitive || needle.length < SHORT_NAME;
-  return new RegExp(`(^|[^\\p{L}\\p{N}])${escapeRegex(needle)}([^\\p{L}\\p{N}]|$)`, exact ? "u" : "iu").test(text);
+  return new RegExp(`(?<![\\p{L}\\p{N}]|[\\p{L}\\p{N}]\\.)${escapeRegex(needle)}(?![\\p{L}\\p{N}]|\\.[\\p{L}\\p{N}])`, exact ? "u" : "iu").test(text);
 }
 
 function containsDomain(domain: string, text: string): boolean {
-  return new RegExp(`(^|[^\\p{L}\\p{N}-])${escapeRegex(domain)}(?![\\p{L}\\p{N}-])`, "iu").test(text);
+  const spellings = [...new Set([domain, domainToASCII(domain)].filter(Boolean))];
+  return spellings.some((d) => new RegExp(`(?<![\\p{L}\\p{N}-])${escapeRegex(d)}(?![\\p{L}\\p{N}-]|\\.[\\p{L}\\p{N}])`, "iu").test(text));
 }
 
 export function namedInText(brand: string, domain: string, text: string, options: { caseSensitive?: boolean; aliases?: string[] } = {}): boolean {
@@ -39,36 +41,58 @@ export function isCompetitorName(value: unknown): value is string {
   return name.length > 0 && !/^[a-z][a-z0-9+.-]*:\/\//i.test(name) && !/^[^\s/]+\.[a-z]{2,}\/\S/i.test(name);
 }
 
+function invalid(id: string, field: string, rule: string): Error {
+  return new Error(`verdict ${id}: "${field}" ${rule}`);
+}
+
 export function parseVerdicts(data: unknown): Verdict[] {
   const list = Array.isArray(data) ? data : Array.isArray((data as { verdicts?: unknown })?.verdicts) ? (data as { verdicts: unknown[] }).verdicts : null;
   if (!list) throw new Error('verdicts must be a list or an object with a "verdicts" list');
   return list.map((raw, index) => {
     const v = (raw ?? {}) as Record<string, unknown>;
     if (typeof v.id !== "string" || !v.id) throw new Error(`verdict ${index + 1} has no id`);
-    const position = typeof v.position === "number" && Number.isInteger(v.position) && v.position > 0 ? v.position : null;
+    if (typeof v.named !== "boolean") throw invalid(v.id, "named", "must be true or false");
+    if (v.position != null && (typeof v.position !== "number" || !Number.isInteger(v.position))) throw invalid(v.id, "position", "must be a whole number or null");
+    if (v.competitors != null && !Array.isArray(v.competitors)) throw invalid(v.id, "competitors", "must be a list of names");
+    if (v.alias != null && typeof v.alias !== "string") throw invalid(v.id, "alias", "must be a name or null");
+    const position = typeof v.position === "number" && v.position > 0 ? v.position : null;
     const competitors = Array.isArray(v.competitors) ? v.competitors.filter(isCompetitorName).map((c) => c.trim().slice(0, 120)) : [];
     const alias = typeof v.alias === "string" && v.alias.trim() ? v.alias.trim().slice(0, 120) : null;
-    return { id: v.id, named: v.named === true, alias, position, competitors };
+    return { id: v.id, named: v.named, alias, position, competitors };
   });
 }
 
-function keepCompetitor(name: string, answer: Answer, brand: string, domain: string): boolean {
-  const key = nameKey(name);
-  if (!key || key === nameKey(brand)) return false;
-  if (namedInText(brand, domain, name) || namedInText(name, "", brand)) return false;
+const MIN_ALIAS = 3;
+
+export function usableAlias(alias: string | null, brand: string, domain: string): string | null {
+  if (!alias || alias.length < MIN_ALIAS) return null;
+  if (/^[\p{Ll}\s]+$/u.test(alias) && !brand.toLowerCase().includes(alias) && !domain.toLowerCase().includes(alias)) return null;
+  return alias;
+}
+
+function keepCompetitor(name: string, answer: Answer, brand: string, domain: string, alias: string | null): boolean {
+  const key = baseNameKey(name);
+  if (!key || key === baseNameKey(brand) || (alias && key === baseNameKey(alias))) return false;
+  if (namedInText(brand, domain, name)) return false;
   if (BARE_DOMAIN.test(name)) return proseOf(answer.text).toLowerCase().includes(name.toLowerCase().replace(/^www\./, ""));
   return true;
 }
 
+function writtenWithCapitals(brand: string): boolean {
+  return brand !== brand.toLowerCase();
+}
+
 function judgeOne(answer: Answer, verdict: Verdict | undefined, brand: string, domain: string): JudgedAnswer {
   if (!answer.ok) return { ...answer, named: null, position: null, competitors: [], warning: null };
-  const competitors = (verdict?.competitors ?? []).filter((c) => keepCompetitor(c, answer, brand, domain));
-  const strict = namedInText(brand, domain, answer.text, { caseSensitive: true });
+  const alias = usableAlias(verdict?.alias ?? null, brand, domain);
+  const competitors = (verdict?.competitors ?? []).filter((c) => keepCompetitor(c, answer, brand, domain, alias));
+  const prose = proseOf(answer.text);
+  const strict = namedInText(brand, domain, prose, { caseSensitive: writtenWithCapitals(brand) });
   if (!verdict) return { ...answer, named: strict, position: null, competitors, warning: null };
   if (verdict.named) {
-    const aliases = verdict.alias ? [verdict.alias] : [];
-    if (namedInText(brand, domain, answer.text, { aliases })) return { ...answer, named: true, position: verdict.position, competitors, warning: null };
-    const said = verdict.alias ? `"${brand}", "${verdict.alias}" or ${domain}` : `"${brand}" or ${domain}`;
+    const aliases = alias ? [alias] : [];
+    if (namedInText(brand, domain, prose, { aliases })) return { ...answer, named: true, position: verdict.position, competitors, warning: null };
+    const said = alias ? `"${brand}", "${alias}" or ${domain}` : `"${brand}" or ${domain}`;
     return { ...answer, named: false, position: null, competitors, warning: `The verdict says named, but the text never contains ${said}. Counted as not named.` };
   }
   const warning = strict ? `The text contains "${brand}" or ${domain}, but the verdict says not named. Counted as not named; check whether it means the brand.` : null;

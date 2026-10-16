@@ -18,6 +18,17 @@ test("the homepage language picks the market, the top level domain picks the cou
   assert.equal(marketId(chooseMarket("es", "ejemplo.es")), "es-ES");
 });
 
+test("a declared region picks the country when the domain ending does not", () => {
+  assert.equal(marketId(chooseMarket("en-GB", "example.com")), "en-GB");
+  assert.equal(marketId(chooseMarket("de-AT", "beispiel.io")), "de-AT");
+  assert.equal(marketId(chooseMarket("de-CH", "beispiel.com")), "de-CH");
+  assert.equal(marketId(chooseMarket("fr-BE", "exemple.com")), "fr-BE");
+  assert.equal(marketId(chooseMarket("nl-BE", "voorbeeld.eu")), "nl-BE");
+  assert.equal(marketId(chooseMarket("en-US", "example.co.uk")), "en-GB");
+  assert.equal(marketId(chooseMarket("de-DE", "beispiel.at")), "de-AT");
+  assert.equal(marketId(chooseMarket("en-AU", "example.com")), "en-US");
+});
+
 test("unknown or missing languages fall back to the United States", () => {
   assert.deepEqual(chooseMarket("pl", "przyklad.pl"), DEFAULT_MARKET);
   assert.deepEqual(chooseMarket(null, "example.com"), DEFAULT_MARKET);
@@ -32,9 +43,13 @@ test("markets can be forced by id", () => {
 });
 
 test("html lang is read from the html tag", () => {
-  assert.equal(htmlLanguage('<html lang="de-DE"><body>'), "de");
+  assert.equal(htmlLanguage('<html lang="de-DE"><body>'), "de-DE");
+  assert.equal(htmlLanguage('<html lang="en_gb"><body>'), "en-GB");
+  assert.equal(htmlLanguage('<html lang="zh-Hans"><body>'), "zh");
   assert.equal(htmlLanguage("<html class=x lang=fr>"), "fr");
   assert.equal(htmlLanguage("<html><body lang='de'>"), null);
+  assert.equal(htmlLanguage('<html data-lang="fr" lang="en">'), "en");
+  assert.equal(htmlLanguage('<html lang="english">'), null);
 });
 
 test("without a declared language the domain ending picks the market", () => {

@@ -19,15 +19,23 @@ export class ProviderError extends Error {
   }
 }
 
-export function cleanUrl(url: string): string {
+function rewrite(url: string, dropHash: (hash: string) => boolean): string {
   try {
     const u = new URL(url);
-    u.hash = "";
+    if (dropHash(u.hash)) u.hash = "";
     for (const key of [...u.searchParams.keys()]) if (key.startsWith("utm_")) u.searchParams.delete(key);
     return u.toString();
   } catch {
     return url;
   }
+}
+
+export function cleanUrl(url: string): string {
+  return rewrite(url, () => true);
+}
+
+export function withoutTracking(url: string): string {
+  return rewrite(url, (hash) => hash.startsWith("#:~:"));
 }
 
 export function hostOf(url: string): string {

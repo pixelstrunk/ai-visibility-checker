@@ -47,6 +47,11 @@ export function languageOf(language: string | null | undefined): string {
   return (language ?? "").toLowerCase().split(/[-_]/)[0] ?? "";
 }
 
+export function regionOf(language: string | null | undefined): string {
+  const region = (language ?? "").split(/[-_]/)[1] ?? "";
+  return /^[a-z]{2}$/i.test(region) ? region.toUpperCase() : "";
+}
+
 export function hasMarket(language: string | null | undefined): boolean {
   return MARKET_LANGUAGES.includes(languageOf(language));
 }
@@ -57,8 +62,10 @@ export function chooseMarket(language: string | null | undefined, domain: string
   const rows = MARKET_TABLE.filter((m) => m.language === lang);
   if (rows.length === 0) return DEFAULT_MARKET;
   const tld = topLevel(domain);
+  const region = regionOf(language);
   const byTld = rows.find((m) => m.tlds.includes(tld));
-  return strip(byTld ?? rows.find((m) => m.fallback)!);
+  const byRegion = region ? rows.find((m) => m.country === region) : undefined;
+  return strip(byTld ?? byRegion ?? rows.find((m) => m.fallback)!);
 }
 
 export function marketRows(): Market[] {
@@ -75,7 +82,10 @@ export function parseMarket(input: string): Market | null {
 }
 
 export function htmlLanguage(html: string): string | null {
-  const tag = /<html\b[^>]*>/i.exec(html)?.[0];
-  const value = tag ? /\blang\s*=\s*["']?([a-zA-Z]{2,3})(?:[-_][a-zA-Z0-9]+)?/i.exec(tag)?.[1] : undefined;
-  return value ? value.toLowerCase() : null;
+  const tag = /<html\b[^<>]*>/i.exec(html)?.[0];
+  const match = tag ? /\slang\s*=\s*["']?([a-z]{2,3})(?:[-_]([a-z0-9]{2,8}))?(?=["'\s/>])/i.exec(tag) : null;
+  if (!match) return null;
+  const language = match[1]!.toLowerCase();
+  const region = regionOf(`${language}-${match[2] ?? ""}`);
+  return region ? `${language}-${region}` : language;
 }
