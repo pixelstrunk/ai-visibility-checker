@@ -22,13 +22,13 @@ npm publish --auth-type=web
 
 Run it in a real terminal so the passkey prompt works. Then, on npmjs.com, open the package settings and add the trusted publisher: owner `pixelstrunk`, repository `ai-visibility-checker`, workflow `release.yml`, environment `npm`. Under publishing access, choose "Require two-factor authentication and disallow tokens". From then on every release goes through the workflow, without tokens.
 
-On GitHub, the environment `npm` requires the maintainer's approval, a ruleset lets only admins create, move or delete `v*` tags, and another blocks force pushes and deletion of `main`.
+On GitHub, the environment `npm` only accepts `v*` tags, a ruleset lets only admins create, move or delete those tags, and another blocks force pushes and deletion of `main`.
 
 The skill runs `npx ai-visibility-checker@0`, which picks the highest 0.x version. Until 0.1.0 is out it resolves to the placeholder, which has no command, so the skill fails cleanly instead of running anything.
 
 ## Every release
 
-A release is triggered by pushing a git tag `vX.Y.Z` that points to a commit on `main`. GitHub Actions (`.github/workflows/release.yml`) then waits for the maintainer's approval in the `npm` environment, tests, publishes to npm and, only if that worked, creates the GitHub release.
+A release is triggered by pushing a git tag `vX.Y.Z` that points to a commit on `main`. GitHub Actions (`.github/workflows/release.yml`) then tests, publishes to npm and, only if that worked, creates the GitHub release.
 
 1. Bump the version in all three places, they must stay in sync (CI fails if they drift):
    - `package.json` -> `"version": "X.Y.Z"`
@@ -41,7 +41,6 @@ A release is triggered by pushing a git tag `vX.Y.Z` that points to a commit on 
    git tag -a vX.Y.Z -m "ai-visibility-checker vX.Y.Z"
    git push origin vX.Y.Z
    ```
-5. Approve the waiting `npm` deployment in the Actions tab of the release run.
 
 ## Major versions
 
